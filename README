@@ -1,0 +1,35 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=2028
+
+The MarkLines plugin allows one to visually mark any number of lines, in any
+number of buffers, with any chosen highlight.  In a sufficiently new version
+of VIM, 7.1.040 or greater, you can use more than one highlight color per
+window simultaneously.
+
+THIS PLUGIN REQUIRES VIM 7.0 OR GREATER.
+
+Useful for things like 'Mark every line that contains the word...'  or
+'Brighten every line containing a function declaration' without having it
+cleared every time you search for something else.  :)
+
+(By the way, you could do the first example with :%g/foo/MarkLinesOn)
+
+:MarkLinesOn         turns on highlighting for the current line or range
+:MarkLinesOff         turns off highlighting for the current line or range
+:MarkLinesToggle  toggles highlighting for the current line or range
+
+Each can be followed by an optional highlight group name as an argument;
+if so they turn on highlighting to that color (On, Toggle) or only clear lines of
+that color (Off).
+
+A few maps are provided as well.
+<leader>mc   Clear:  Call MarkLinesOff for the current line or selection.
+<leader>ms   Select: Call MarkLinesOn for the current line or selection.
+<leader>mt   Toggle: Call MarkLinesToggle for the current line or selection.
+<leader>me   Error:  Like \mt but using the "ErrorMsg" group, rather than the
+                     default highlight group.
+
+For more details please see the in-vim help.  I spent a long time writing it,
+someone should read it.  ^_^
+
+Any questions, please feel free to email me.
+
