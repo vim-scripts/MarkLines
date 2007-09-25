@@ -47,7 +47,7 @@ let g:marklines_loaded = 1
 " Choose an operating mode.                                              {{{1
 " Normally, we will prefer to use matchadd(), then :2match, then :match, but
 " the user may choose to override and choose himself.  Realistically, the user
-" should never need to touch this.  matchadd() is undisputably better than the
+" should never need to touch this.  matchadd() is indisputably better than the
 " others, and I can see no reason why you would ever not want to use it if you
 " had it.  However, it might be useful to force us to use :match instead of
 " :2match if another plugin is already using :2match.
