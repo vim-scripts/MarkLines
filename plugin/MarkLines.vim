@@ -165,6 +165,7 @@ function! s:SetMarked(mode, ...) range
     let key = g:marklines_highlight
   elseif a:0 == 0
     let key = 'MarkedLine'
+    call s:EnsureMarkedLineHighlight()
   else
     let key = join(a:000, ' ')
   endif
@@ -209,7 +210,7 @@ function! s:SetMarked(mode, ...) range
       endif
     endfor
 
-    if !turningoff && i > 1 && i < line("$")
+    if !turningoff && i >= 1 && i <= line("$")
       call add(b:marked_lines[key], i)
     endif
   endfor
@@ -228,7 +229,7 @@ endfunction
 " The returned dictionary has the same keys as the arg passed in, and the
 " values are simply converted from arrays of integers to strings of multi-line
 " matches suitable for matchadd().
-function s:GenerateMatchStrings(dict)
+function! s:GenerateMatchStrings(dict)
   let rv = {}
   if len(a:dict)
     for key in keys(a:dict)
@@ -238,6 +239,28 @@ function s:GenerateMatchStrings(dict)
     endfor
   endif
   return rv
+endfunction
+
+" A function to setup the MarkedLine highlight unless already defined.   {{{1
+function s:EnsureMarkedLineHighlight()
+  if hlID('MarkedLine') == 0 ||
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "bg") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "fg") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "bold") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "italic") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "reverse") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "inverse") == "" &&
+        \ synIDattr(synIDtrans(hlID("MarkedLine")), "underline") == ""
+    if &bg == 'dark' && &t_Co == 256
+      highlight MarkedLine ctermbg=237 guibg=#3a3a3a
+    elseif &bg == 'dark'
+      highlight MarkedLine ctermbg=8 guibg=#3a3a3a
+    elseif &t_Co == 256
+      highlight MarkedLine ctermbg=248 guibg=#a8a8a8
+    else
+      highlight MarkedLine ctermbg=7 guibg=#a8a8a8
+    endif
+  endif
 endfunction
 
 " Define autocommands to refresh windows based on user interaction.      {{{1
@@ -253,13 +276,13 @@ endif
 " :MarkLinesOn takes 0 or 1 arg; the optional arg to SetMarked.
 " It takes a range, and defaults to the current line if one is not provided.
 " It can be followed by another command, and tab-completes highlight groups.
-command -nargs=? -range -bar -complete=highlight MarkLinesOn :<line1>,<line2>call <SID>SetMarked(1, <f-args>)
+command! -nargs=? -range -bar -complete=highlight MarkLinesOn :<line1>,<line2>call <SID>SetMarked(1, <f-args>)
 
 " Define ':MarkLinesOff' for unconditionally unmarking a range.          {{{1
 " :MarkLinesOff takes 0 or 1 arg; the optional arg to SetMarked.
 " It takes a range, and defaults to the current line if one is not provided.
 " It can be followed by another command, and tab-completes highlight groups.
-command -nargs=? -range -bar -complete=highlight MarkLinesOff :<line1>,<line2>call <SID>SetMarked(0, <f-args>)
+command! -nargs=? -range -bar -complete=highlight MarkLinesOff :<line1>,<line2>call <SID>SetMarked(0, <f-args>)
 
 " Define ':MarkLinesToggle' for conditionally marking a range.           {{{1
 " :MarkLinesToggle takes 0 or 1 arg; the optional highlight group to SetMarked.
@@ -267,10 +290,46 @@ command -nargs=? -range -bar -complete=highlight MarkLinesOff :<line1>,<line2>ca
 " It can be followed by another command, and tab-completes highlight groups.
 " If all lines in the range are already marked with the chosen highlight
 " group, turn unmark them all, else mark them all.
-command -nargs=? -range -bar -complete=highlight MarkLinesToggle :<line1>,<line2>call <SID>SetMarked(2, <f-args>)
+command! -nargs=? -range -bar -complete=highlight MarkLinesToggle :<line1>,<line2>call <SID>SetMarked(2, <f-args>)
+
+" Define functions for MarkLinesOn, MarkLinesOff, and MarkLinesToggle    {{{1
+" These wrappers just let us easily call those commands in an expression.
+function! MarkLinesOn() range
+  exe a:firstline.",".a:lastline."MarkLinesOn"
+endfunction
+
+function! MarkLinesOff() range
+  exe a:firstline.",".a:lastline."MarkLinesOff"
+endfunction
+
+function! MarkLinesToggle() range
+  exe a:firstline.",".a:lastline."MarkLinesToggle"
+endfunction
+
+" Return a list of the lines in the current buffer that are Marked.      {{{1
+" If the optional argument is supplied, it is expected to be a List, and is
+" used as a filter - Only lines Marked with a matching highlight group are
+" returned.  For convenience, if the optional argument is a String rather than
+" a List, we treat it as a list with a single element.
+function! MarkLinesList(...)
+  if a:0 != 0
+    let filter = a:000
+    if a:0 == 1 && type(filter[0]) == type([])
+      let filter = filter[0]
+    endif
+  endif
+  let rv = []
+  for [key, val] in items(b:marked_lines)
+    if !exists("filter") || index(filter, key) != -1
+      let rv += val
+    endif
+  endfor
+  return sort(rv)
+endfunction
 
 " Define convenience maps.                                               {{{1
-if ! exists('g:marklines_noautomap')
+if ! exists('g:marklines_noautomap') && ! exists('g:marklines_didmap')
+  let g:marklines_didmap = 1
   nmap <silent> <unique> <leader>mc :MarkLinesOff<CR>
   nmap <silent> <unique> <leader>ms :MarkLinesOn<CR>
   nmap <silent> <unique> <leader>mt :MarkLinesToggle<CR>
@@ -279,17 +338,4 @@ if ! exists('g:marklines_noautomap')
   vmap <silent> <unique> <leader>ms :MarkLinesOn<CR>
   vmap <silent> <unique> <leader>mt :MarkLinesToggle<CR>
   vmap <silent> <unique> <leader>me :MarkLinesToggle ErrorMsg<CR>
-endif
-
-" Define the MarkedLine highlight group unless its been defined.         {{{1
-if hlID('MarkedLine') == 0
-  if &bg == 'dark' && &t_Co == 256
-    highlight MarkedLine ctermbg=237 guibg=#3a3a3a
-  elseif &bg == 'dark'
-    highlight MarkedLine ctermbg=8 guibg=#3a3a3a
-  elseif &t_Co == 256
-    highlight MarkedLine ctermbg=248 guibg=#a8a8a8
-  else
-    highlight MarkedLine ctermbg=7 guibg=#a8a8a8
-  endif
 endif
